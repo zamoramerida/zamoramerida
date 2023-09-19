@@ -1,6 +1,9 @@
 import requests
 import boto3
 from botocore.auth import SigV4Auth
+import botocore.session
+from botocore.awsrequest import AWSRequest
+
 
 # Configure AWS credentials from your AWS CLI configuration
 aws_session = boto3.Session()
@@ -14,9 +17,10 @@ aws_service = "aps"
 
 # Define your AMP query
 amp_query = "your_prometheus_query_here"
+sigv4 = SigV4Auth(aws_session.get_credentials(), aws_service, aws_region)
 
 # Create a session with the AWS Signature Version 4 authentication handler
-session = requests.Session()
+session = botocore.session.Session()
 
 # Send a POST request to the AMP query endpoint
 try:
@@ -28,15 +32,19 @@ try:
         "query": amp_query,
     }
 
-    request = requests.Request('POST', amp_query_url, json=data, headers=headers)
-    prepared_request = session.prepare_request(request)
+    #request = requests.Request('POST', amp_query_url, json=data, headers=headers)
+													   
+
+    request = AWSRequest(method='POST', url=amp_query_url, data=data, headers=headers)
+    request.context["payload_signing_enabled"] = False # payload signing is not supported
+    sigv4.add_auth(request)
+    
+    prepped = request.prepare()
+
+
+    response = requests.post(prepped.url, headers=prepped.headers, data=data)
 
     # Sign the request using AWS Signature Version 4
-    auth = SigV4Auth(aws_session.get_credentials(), aws_service, aws_region)
-    auth.add_auth(prepared_request)
-
-    response = session.send(prepared_request)
-    response.raise_for_status()  # Raise an exception for HTTP errors
 
     result = response.json()
     # Handle the response data here
@@ -45,10 +53,3 @@ try:
 
 except requests.exceptions.RequestException as e:
     print(f"Failed to reach AMP Query Endpoint: {e}")
-
-# Process the result from the AMP query response
-if "data" in result:
-    # Extract and process the data as needed
-    query_result = result["data"]["executePromQL"]["result"]
-
-    # Add your logic to work with the query_result data
