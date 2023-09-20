@@ -1,55 +1,41 @@
 import requests
+from requests_aws4auth import AWS4Auth
 import boto3
-from botocore.auth import SigV4Auth
-import botocore.session
-from botocore.awsrequest import AWSRequest
 
+# Define the AWS region, profile, and query endpoint URL
+aws_region = "region"
+aws_profile = "saml"
+query_endpoint = "https://aps-workspaces.region.amazonaws.com/workspaces/ws-XXXXXXXXX/api/v1/query"  # Replace with the actual endpoint
+service_name = "aps"  # This should match the service you are using
 
-# Configure AWS credentials from your AWS CLI configuration
-aws_session = boto3.Session()
+# Create a session using your AWS profile
+session = boto3.Session(profile_name=aws_profile, region_name=aws_region)
 
-# Define the AMP query endpoint URL
-amp_query_url = "https://aps-workspaces.<your-region>.amazonaws.com/workspaces/<workspace-id>/query"
+# Generate AWS Signature Version 4 credentials
+credentials = session.get_credentials()
+access_key = credentials.access_key
+secret_key = credentials.secret_key
+token = credentials.token
 
-# Define the AWS region and service for AWS Signature Version 4
-aws_region = "<your-aws-region>"
-aws_service = "aps"
+# Construct the full URL with the query parameter
+query_url = f"{query_endpoint}?query=up"
 
-# Define your AMP query
-amp_query = "your_prometheus_query_here"
-sigv4 = SigV4Auth(aws_session.get_credentials(), aws_service, aws_region)
+# Create the AWS4Auth object
+auth = AWS4Auth(
+    access_key,
+    secret_key,
+    aws_region,
+    service_name,
+    session_token=token,
+)
 
-# Create a session with the AWS Signature Version 4 authentication handler
-session = botocore.session.Session()
+# Make an HTTP POST request using the requests library and AWS Signature
+headers = {
+    "x-amz-security-token": token,
+}
 
-# Send a POST request to the AMP query endpoint
-try:
-    headers = {
-        "Content-Type": "application/json",
-        "X-Amz-Target": "AmazonPrometheus.GraphQL.ExecuteQuery",
-    }
-    data = {
-        "query": amp_query,
-    }
+response = requests.post(query_url, headers=headers, auth=auth)
 
-    #request = requests.Request('POST', amp_query_url, json=data, headers=headers)
-													   
-
-    request = AWSRequest(method='POST', url=amp_query_url, data=data, headers=headers)
-    request.context["payload_signing_enabled"] = False # payload signing is not supported
-    sigv4.add_auth(request)
-    
-    prepped = request.prepare()
-
-
-    response = requests.post(prepped.url, headers=prepped.headers, data=data)
-
-    # Sign the request using AWS Signature Version 4
-
-    result = response.json()
-    # Handle the response data here
-
-    print("AMP Query Endpoint is reachable!")
-
-except requests.exceptions.RequestException as e:
-    print(f"Failed to reach AMP Query Endpoint: {e}")
+# Print the response
+print("Response Status Code:", response.status_code)
+print("Response Content:", response.text)
