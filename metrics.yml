@@ -1,0 +1,48 @@
+metrics_to_be_collected:
+  demo:
+      - metric: "hyperscale.UI_Key_Press_Latency_50_percentile"
+        query: >
+          histogram_quantile(0.50, sum(rate(hyperscale_client_key_press_decoder_feed_round_trip_time_bucket[1d])) by (le))
+
+      - metric: "hyperscale.ABR_switch_95_percentile"
+        query: "histogram_quantile(0.95, sum(rate(hyperscale_client_wait_for_abr_bucket[1d])) by (le))"
+
+      - metric: "hyperscale.ABR_switch_50_percentile"
+        query: "histogram_quantile(0.50, sum(rate(hyperscale_client_wait_for_abr_bucket[1d])) by (le))"
+
+      - metric: "hyperscale.UI_switch_95_percentile"
+        query: "histogram_quantile(0.95, sum(rate(hyperscale_client_wait_for_ui_bucket[1d])) by (le))"
+
+      - metric: "hyperscale.UI_switch_50_percentile"
+        query: "histogram_quantile(0.50, sum(rate(hyperscale_client_wait_for_ui_bucket[1d])) by (le))"
+
+      - metric: "hyperscale.Time_Percentage_with_ABR_Video_Corruptions"
+        query: "sum(increase(hyperscale_client_abr_playback_user_errors_duration_count[1d])) / sum(increase(hyperscale_client_abr_playback_user_errors_duration_sum[1d])) * 100"
+
+      - metric: "hyperscale.ABR_Playback_Success_Rate"
+        query: >
+          sum(increase(hyperscale_client_abr_session_duration_count[1d])) / sum(increase(hyperscale_client_abr_session_duration_count[1d])) * 100
+   
+      - metric: hyperscale.Long_ABR_Playback_3h_Success_Rate
+        query: >
+          (sum(increase(hyperscale_client_abr_session_duration_count[1d])) - sum(increase(hyperscale_client_abr_session_duration_bucket[1d]))) / (sum(increase(hyperscale_client_abr_session_duration_count[1d])) - sum(increase(hyperscale_client_abr_session_duration_bucket[1d]))) * 100
+
+      - metric: "hyperscale.Session_Success_Rate"
+        query: >
+          sum(increase(hyperscale_client_error_code_frequency_count{errorType="EXIT", errorCode=~".*_600|.*_100|.*_101"}[1d])) / sum(increase(hyperscale_client_error_code_frequency_count{errorType=~"SIGNAL|EXIT"}[1d])) * 100
+
+      - metric: "hyperscale.Long_Session_8h_Success_Rate"
+        query: >
+          (sum(increase(hyperscale_client_error_code_frequency_count{errorType="EXIT", errorCode=~".*_600|.*_100|.*_101"}[1d])) - sum(increase(hyperscale_client_error_code_frequency_bucket{errorType="EXIT", errorCode=~".*_600|.*_100|.*_101", le="480"}[1d]))) / (sum(increase(hyperscale_client_error_code_frequency_count{errorType=~"SIGNAL|EXIT"}[1d])) - sum(increase(hyperscale_client_error_code_frequency_bucket{errorType=~"SIGNAL|EXIT", le="480"}[1d]))) * 100
+
+      - metric: "hyperscale.Number_Long_Sessions"
+        query: >
+          sum(increase(hyperscale_client_error_code_frequency_count{errorType=~"SIGNAL|EXIT"}[1d])) - sum(increase(hyperscale_client_error_code_frequency_bucket{errorType=~"SIGNAL|EXIT", le="480"}[1d]))
+
+      - metric: "hyperscale.Start_Playback_Success_Rate"
+        query: >
+          hyperscale_client_wait_for_abr_count{region='eu-west-1'}[1d]
+          
+      - metric: "hyperscale.Hour_Usage_Per_Client"
+        query: >
+          sum (increase(hyperscale_transcontainer_viewing_abr[1d]))
